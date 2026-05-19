@@ -296,8 +296,34 @@ def atualizar_dashboard(dados_json):
             sort_action="native",               # Ordenação clicando no cabeçalho
             filter_action="native",             # Filtro por coluna
             style_table={"overflowX": "auto"},  # Scroll horizontal no mobile
-            style_cell={"textAlign": "left", "padding": "8px 12px"},
-            style_header={"fontWeight": "bold"},
+            style_cell={
+                "textAlign": "left",
+                "padding": "8px 12px",
+                "backgroundColor": COLORS["surface"],
+                "color": COLORS["text"],
+                "fontFamily": "Inter, sans-serif",
+            },
+            style_header={
+                "backgroundColor": COLORS["surface2"],
+                "fontWeight": "bold",
+                "color": COLORS["text"],
+                "border": f"1px solid {COLORS['neutral']}33",
+            },
+            style_filter={
+                "backgroundColor": COLORS["surface2"],
+                "color": COLORS["text"],
+            },
+            style_data={
+                "border": f"1px solid {COLORS['neutral']}33",
+            },
+            # Estilo condicional para quando o usuário clica/seleciona uma célula
+            style_data_conditional=[
+                {
+                    "if": {"state": "selected"},
+                    "backgroundColor": "rgba(37, 99, 235, 0.2)",
+                    "border": f"1px solid {COLORS['primary']}",
+                }
+            ],
         )
 
         return (

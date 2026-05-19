@@ -10,13 +10,13 @@
 # -----------------------------------------------------------------------------
 DB_CONFIG = {
     # Endereço IP do servidor onde o Firebird está rodando
-    "host": "192.168.25.73",
+    "host": "192.168.1.110",
 
     # Porta padrão do Firebird (3050). Altere se usar porta customizada.
     "port": 3050,
 
     # Caminho COMPLETO do arquivo .FDB no servidor remoto
-    "database": r"D:\Makemoney\Dados\Renutri\VISAWORK.FDB",
+    "database": r"C:\Makemoney\Dados\VISAWORK.FDB",
 
     # Usuário do banco (padrão Firebird: SYSDBA)
     "user": "SYSDBA",
@@ -34,7 +34,7 @@ DB_CONFIG = {
 # -----------------------------------------------------------------------------
 APP_CONFIG = {
     # Título que aparece na aba do navegador
-    "title": "Renutri — Painel de Relatórios",
+    "title": "Vieira JR — Painel de Relatórios",
 
     # Porta onde o servidor Dash vai rodar
     # Acesse em: http://localhost:8050 ou http://IP_DO_PC:8050
@@ -61,6 +61,7 @@ COLORS = {
     "neutral":    "#64748B",   # Cinza
     "background": "#0F172A",   # Fundo escuro do painel
     "surface":    "#1E293B",   # Cartões/painéis
+    "surface2":   "#263548",   # Fundo de inputs/filtros
     "text":       "#F1F5F9",   # Texto claro
 }
 

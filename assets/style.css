@@ -244,11 +244,17 @@ input[type="date"].form-control:focus {
   text-transform: uppercase !important;
   letter-spacing: 0.5px !important;
   font-size: 11px !important;
-  color: var(--text-muted) !important;
+  color: var(--text) !important; /* Mudado de var(--text-muted) para var(--text) */
+}
+
+/* Garante que o texto digitado no filtro seja visível */
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner input {
+  color: var(--text) !important;
+  background-color: var(--surface2) !important;
 }
 
 .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner tr:hover td {
-  background-color: rgba(37, 99, 235, 0.08) !important;
+  background-color: rgba(37, 99, 235, 0.12) !important;
 }
 
 /* =============================================================================
