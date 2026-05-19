@@ -254,7 +254,12 @@ input[type="date"].form-control:focus {
 }
 
 .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner tr:hover td {
-  background-color: rgba(37, 99, 235, 0.12) !important;
+  background-color: #2D3A4F !important;
+}
+
+/* Força a cor do texto no hover para garantir contraste */
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner tr:hover td {
+  color: #FFFFFF !important;
 }
 
 /* =============================================================================

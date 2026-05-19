@@ -70,3 +70,78 @@ COLOR_SEQUENCE = [
     "#2563EB", "#7C3AED", "#059669", "#D97706",
     "#DC2626", "#0891B2", "#DB2777", "#65A30D",
 ]
+
+# -----------------------------------------------------------------------------
+# CONFIGURAÇÃO DA CENTRAL DE RELATÓRIOS
+# -----------------------------------------------------------------------------
+RELATORIOS_CONFIG = {
+    # SETOR: VENDAS
+    "vendas_por_produto": {
+        "titulo": "Vendas por Produto",
+        "setor": "Vendas",
+        "sql": "SELECT FIRST 10 PRODUTO, SUM(VALOR) AS TOTAL FROM NOTAS GROUP BY PRODUTO ORDER BY 2 DESC",
+        "tipo_grafico": "bar"
+    },
+    
+    # SETOR: ESTOQUE
+    "produto_sem_giro": {
+        "titulo": "Produto sem Giro",
+        "setor": "Estoque",
+        "sql": """
+            select
+            produto.codpro,
+            Produto.DesPro,
+            grupo.descricao as Grupo,
+            subgrupo.descricao as subgrupo, 
+            estoque.estoque,
+            estoque.venda as Preco_Venda,
+            estoque.custo as Preco_Custo
+            from estoque
+            inner join produto on Estoque.codpro = produto.codpro
+            inner join grupo on produto.grupo = grupo.codigo
+            inner join subgrupo on produto.subgrupo = subgrupo.subgrupo and grupo.codigo = subgrupo.grupo
+            where estoque.estoque > 0
+            and produto.codpro not in(select sainota1.codpro from sainota
+                                      inner join sainota1 on sainota.id = sainota1.id
+                                      and sainota.cod_emp = sainota1.cod_emp
+                                      inner join tipvenda on sainota.tipvenda = tipvenda.codigo
+                                      where sainota.dat_che >= DATEADD( :DIAS DAY TO current_date )
+                                      and sainota.cod_emp = :codemp
+                                      and sainota.fechado ='S'
+                                      and Sainota.NotCan = 'N'
+                                      and TipVenda.EntraMovimento = 'S')
+            order by 3,1
+        """,
+        "tipo_grafico": "multi",
+        "parametros": {"DIAS": -90, "codemp": "001"}
+    },
+    "estoque_baixo": {
+        "titulo": "Itens com Estoque Baixo",
+        "setor": "Estoque",
+        "sql": "SELECT DESCRIÇÃO, ESTOQUE_ATUAL FROM PRODUTOS WHERE ESTOQUE_ATUAL < ESTOQUE_MINIMO",
+        "tipo_grafico": "bar"
+    },
+
+    # SETOR: FINANCEIRO
+    "contas_pagar": {
+        "titulo": "Contas a Pagar (Próximos 30 dias)",
+        "setor": "Financeiro",
+        "sql": "SELECT VENCIMENTO, SUM(VALOR) AS TOTAL FROM TITULOS WHERE TIPO = 'P' GROUP BY VENCIMENTO",
+        "tipo_grafico": "line"
+    },
+
+    # SETOR: CAIXA E BANCO
+    "movimento_caixas": {
+        "titulo": "Movimento de Caixas",
+        "setor": "Caixa e Banco",
+        "sql": "SQL_MOVIMENTO_CAIXAS",
+        "tipo_grafico": "multi",
+        "parametros": ["pdatai", "pdataf"]
+    },
+    "fluxo_caixa": {
+        "titulo": "Saldo por Conta",
+        "setor": "Caixa e Banco",
+        "sql": "SELECT NOME_CONTA, SALDO_ATUAL FROM CONTAS_BANCARIAS",
+        "tipo_grafico": "bar"
+    }
+}

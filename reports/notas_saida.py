@@ -364,11 +364,11 @@ def _grafico_vazio(mensagem: str) -> go.Figure:
         xref="paper", yref="paper",
         x=0.5, y=0.5,
         showarrow=False,
-        font=dict(size=16, color=COLORS["neutral"]),
+        font=dict(size=14, color=COLORS["neutral"]),
     )
     fig.update_layout(
         **_LAYOUT_PADRAO,
-        xaxis=dict(visible=False),
-        yaxis=dict(visible=False),
+        xaxis=dict(visible=False, showgrid=False, zeroline=False),
+        yaxis=dict(visible=False, showgrid=False, zeroline=False),
     )
     return fig

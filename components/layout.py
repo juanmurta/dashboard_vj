@@ -66,7 +66,7 @@ def criar_filtros() -> dbc.Card:
                         placeholder="Ex: 001",
                         className="dash-input",
                     ),
-                ], xs=12, sm=4, md=2),
+                ], id="container-coligada", xs=12, sm=4, md=2),
 
                 # Campo: Data Inicial
                 # Usamos dbc.Input type="date" ao invés do dcc.DatePickerSingle
@@ -81,7 +81,7 @@ def criar_filtros() -> dbc.Card:
                         value=primeiro_dia_mes.strftime("%Y-%m-%d"),
                         className="date-input",
                     ),
-                ], xs=12, sm=4, md=3),
+                ], id="container-data-ini", xs=12, sm=4, md=3),
 
                 # Campo: Data Final
                 dbc.Col([
@@ -92,7 +92,18 @@ def criar_filtros() -> dbc.Card:
                         value=hoje.strftime("%Y-%m-%d"),
                         className="date-input",
                     ),
-                ], xs=12, sm=4, md=3),
+                ], id="container-data-fim", xs=12, sm=4, md=3),
+
+                # Campo: Dias (para Relatórios como Produto sem Giro)
+                dbc.Col([
+                    dbc.Label("Dias sem Giro", html_for="input-dias"),
+                    dbc.Input(
+                        id="input-dias",
+                        type="number",
+                        value=90,
+                        className="dash-input",
+                    ),
+                ], id="container-dias", xs=12, sm=4, md=2, style={"display": "none"}),
 
                 # Botão Consultar
                 dbc.Col([
@@ -122,7 +133,8 @@ def criar_filtros() -> dbc.Card:
 
 
 def criar_linha_graficos(grafico_id_esq: str, grafico_id_dir: str,
-                          titulo_esq: str = "", titulo_dir: str = "") -> dbc.Row:
+                          titulo_esq: str = "", titulo_dir: str = "",
+                          fig_padrao=None) -> dbc.Row:
     """
     Cria uma linha com dois gráficos lado a lado (layout responsivo).
 
@@ -131,6 +143,7 @@ def criar_linha_graficos(grafico_id_esq: str, grafico_id_dir: str,
         grafico_id_dir (str): ID do dcc.Graph da direita
         titulo_esq     (str): Título opcional para o card esquerdo
         titulo_dir     (str): Título opcional para o card direito
+        fig_padrao          : Figura inicial do gráfico.
 
     Returns:
         dbc.Row com dois cards de gráfico.
@@ -142,6 +155,7 @@ def criar_linha_graficos(grafico_id_esq: str, grafico_id_dir: str,
         corpo.append(
             dcc.Graph(
                 id=graph_id,
+                figure=fig_padrao if fig_padrao else {},
                 config={
                     "displayModeBar": True,       # Barra de ferramentas do Plotly
                     "modeBarButtonsToRemove": [    # Remove botões desnecessários
@@ -163,6 +177,63 @@ def criar_linha_graficos(grafico_id_esq: str, grafico_id_dir: str,
         dbc.Col(card_grafico(grafico_id_esq, titulo_esq), xs=12, lg=6),
         dbc.Col(card_grafico(grafico_id_dir, titulo_dir), xs=12, lg=6),
     ], className="g-3 mb-3")
+
+
+def criar_navbar() -> dbc.NavbarSimple:
+    """
+    Cria a barra de navegação superior para alternar entre as páginas.
+    """
+    return dbc.NavbarSimple(
+        children=[
+            dbc.NavItem(dbc.NavLink("📊 Painel Comercial", href="/comercial", id="nav-comercial")),
+            dbc.NavItem(dbc.NavLink("📑 Central de Relatórios", href="/relatorios", id="nav-relatorios")),
+        ],
+        brand="Vieira JR",
+        brand_href="/",
+        color="primary",
+        dark=True,
+        className="mb-4",
+    )
+
+
+def criar_sidebar_relatorios(config_relatorios: dict) -> dbc.Card:
+    """
+    Cria um menu lateral com botões para os relatórios, agrupados por setor.
+    """
+    # Agrupar relatórios por setor
+    setores = {}
+    for key, info in config_relatorios.items():
+        setor = info["setor"]
+        if setor not in setores:
+            setores[setor] = []
+        setores[setor].append({"id": key, "titulo": info["titulo"]})
+
+    accordion_items = []
+    for setor, rels in setores.items():
+        botoes = [
+            dbc.Button(
+                rel["titulo"],
+                id={"type": "btn-relatorio", "index": rel["id"]},
+                color="link",
+                className="w-100 text-start text-decoration-none",
+                style={"color": COLORS["text"]}
+            )
+            for rel in rels
+        ]
+        accordion_items.append(
+            dbc.AccordionItem(
+                html.Div(botoes, className="d-grid gap-2"),
+                title=setor,
+            )
+        )
+
+    return dbc.Card([
+        dbc.CardHeader(html.H5("Setores", className="mb-0")),
+        dbc.CardBody(
+            dbc.Accordion(accordion_items, flush=True, start_collapsed=False),
+            style={"padding": "0"}
+        )
+    ], className="chart-card")
 
 
 def criar_tabela_container() -> html.Div:
