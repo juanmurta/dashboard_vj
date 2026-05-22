@@ -16,7 +16,7 @@ DB_CONFIG = {
     "port": 3050,
 
     # Caminho COMPLETO do arquivo .FDB no servidor remoto
-    "database": r"C:\Makemoney\Dados\VISAWORK.FDB",
+    "database": r"C:\MAKEMONEY\Dados\Renutri\VISAWORK.FDB",
 
     # Usuário do banco (padrão Firebird: SYSDBA)
     "user": "SYSDBA",
@@ -121,6 +121,13 @@ RELATORIOS_CONFIG = {
         "sql": "SELECT DESCRIÇÃO, ESTOQUE_ATUAL FROM PRODUTOS WHERE ESTOQUE_ATUAL < ESTOQUE_MINIMO",
         "tipo_grafico": "bar"
     },
+    "posicao_estoque_vendas": {
+        "titulo": "Posição de Estoque vs. Vendas",
+        "setor": "Estoque",
+        "sql": "SQL_POSICAO_ESTOQUE_VENDAS",
+        "tipo_grafico": "multi",
+        "parametros": ["COLIGADA"]
+    },
 
     # SETOR: FINANCEIRO
     "contas_pagar": {
@@ -128,6 +135,13 @@ RELATORIOS_CONFIG = {
         "setor": "Financeiro",
         "sql": "SELECT VENCIMENTO, SUM(VALOR) AS TOTAL FROM TITULOS WHERE TIPO = 'P' GROUP BY VENCIMENTO",
         "tipo_grafico": "line"
+    },
+    "inadimplencia_periodo": {
+        "titulo": "Inadimplência Período",
+        "setor": "Financeiro",
+        "sql": "SQL_INADIMPLENCIA_PERIODO",
+        "tipo_grafico": "multi",
+        "parametros": ["COLIGADA", "DATVEN_INI", "DATVEN_FIN"]
     },
 
     # SETOR: CAIXA E BANCO

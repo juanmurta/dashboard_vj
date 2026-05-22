@@ -49,6 +49,20 @@ from reports.movimento_caixas import (
     grafico_por_caixa_banco,
     grafico_saldo_acumulado,
 )
+from reports.posicao_estoque_vendas import (
+    buscar_posicao_estoque_vendas,
+    calcular_kpis_posicao,
+    grafico_custo_por_grupo,
+    grafico_vendas_vs_estoque,
+)
+from reports.inadimplencia import (
+    buscar_inadimplencia,
+    calcular_kpis_inadimplencia,
+    grafico_por_vendedor as grafico_inad_vendedor,
+    grafico_por_cidade as grafico_inad_cidade,
+    grafico_faixas_atraso,
+    grafico_por_cliente as grafico_inad_cliente,
+)
 
 # =============================================================================
 # INICIALIZAÇÃO DO APP
@@ -238,6 +252,8 @@ def display_page(pathname, rel_atual):
 def alternar_filtros(rel_id):
     if rel_id == "produto_sem_giro":
         return {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "block"}
+    elif rel_id == "posicao_estoque_vendas":
+        return {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
     elif rel_id == "movimento_caixas":
         # Esconde coligada conforme pedido, mas mantém datas
         return {"display": "none"}, {"display": "block"}, {"display": "block"}, {"display": "none"}
@@ -251,12 +267,41 @@ def alternar_filtros(rel_id):
         return {"display": "block"}, {"display": "block"}, {"display": "block"}, {"display": "none"}
 
 # -----------------------------------------------------------------------------
+# CALLBACK 0: Formatar Coligada com 3 dígitos (zfill)
+# -----------------------------------------------------------------------------
+@app.callback(
+    Output("input-coligada", "value", allow_duplicate=True),
+    Input("input-coligada", "n_submit"),
+    State("input-coligada", "value"),
+    prevent_initial_call=True
+)
+def formatar_coligada_enter(n_submit, valor):
+    if valor:
+        return str(valor).strip().zfill(3)
+    return dash.no_update
+
+@app.callback(
+    Output("input-coligada", "value", allow_duplicate=True),
+    Input("input-coligada", "blur"),
+    State("input-coligada", "value"),
+    prevent_initial_call=True
+)
+def formatar_coligada_blur(n_blur, valor):
+    if valor:
+        return str(valor).strip().zfill(3)
+    return dash.no_update
+
+# -----------------------------------------------------------------------------
 # CALLBACK 1: Consultar banco e guardar dados no Store
 # -----------------------------------------------------------------------------
 @app.callback(
     Output("store-dados", "data"),          # Para layout comercial
     Output("store-dados-relatorios", "data"), # Para layout relatórios
-    Output("alerta-status", "children"),    
+    Output("alerta-status", "children"),
+    Output("input-coligada", "value", allow_duplicate=True),
+    Output("input-data-ini", "value"),
+    Output("input-data-fim", "value"),
+    Output("input-dias", "value"),
     Input("btn-consultar", "n_clicks"),     
     State("relatorio-ativo", "data"),
     State("input-coligada", "value"),       
@@ -267,22 +312,30 @@ def alternar_filtros(rel_id):
 )
 def consultar_dados(n_clicks, rel_id, coligada, data_ini, data_fim, dias):
     if not n_clicks:
-        return dash.no_update, dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+    # Valores para manter os inputs em caso de erro de validação
+    manter_inputs = [dash.no_update, dash.no_update, dash.no_update, dash.no_update]
 
     if not coligada and rel_id != "movimento_caixas":
         alerta = dbc.Alert("Preencha a coligada", color="warning")
-        return dash.no_update, dash.no_update, alerta
+        return dash.no_update, dash.no_update, alerta, *manter_inputs
 
-    df = pd.DataFrame()
-    
+    # Valores para limpar os inputs após consulta bem-sucedida (pedido do usuário)
+    # Limpa apenas coligada (e dias se quiser resetar), mantém as datas.
+    limpar_inputs = ["", dash.no_update, dash.no_update, ""]
+
+    # Garante coligada com 3 dígitos (ex: 2 -> 002)
+    coligada_formatada = str(coligada).strip().zfill(3) if coligada else "001"
+
     if rel_id == "comercial" or rel_id is None:
-        df = buscar_notas(str(coligada).strip(), data_ini, data_fim)
+        df = buscar_notas(coligada_formatada, data_ini, data_fim)
         if not df.empty:
             df["DAT_EMI"] = df["DAT_EMI"].astype(str)
             df["DAT_CHE"] = df["DAT_CHE"].astype(str)
         
         alerta = dbc.Alert(f"✅ {len(df)} notas encontradas", color="success", duration=4000)
-        return df.to_json(date_format="iso", orient="split"), dash.no_update, alerta
+        return df.to_json(date_format="iso", orient="split"), dash.no_update, alerta, *limpar_inputs
 
     elif rel_id == "movimento_caixas":
         df = buscar_movimento_caixas(data_ini, data_fim)
@@ -292,18 +345,30 @@ def consultar_dados(n_clicks, rel_id, coligada, data_ini, data_fim, dias):
             if "DATAMOV" in df.columns:
                 df["DATAMOV"] = df["DATAMOV"].astype(str)
         alerta = dbc.Alert(f"✅ {len(df)} lançamentos encontrados", color="success", duration=4000)
-        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta
+        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *limpar_inputs
 
     elif rel_id == "produto_sem_giro":
         try:
             dias_val = int(dias) if dias else 90
         except (ValueError, TypeError):
             dias_val = 90
-        df = buscar_produtos_sem_giro(str(coligada).strip(), dias_val)
+        
+        df = buscar_produtos_sem_giro(coligada_formatada, dias_val)
         alerta = dbc.Alert(f"✅ {len(df)} produtos encontrados", color="success", duration=4000)
-        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta
+        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *limpar_inputs
     
-    return dash.no_update, dash.no_update, dash.no_update
+    elif rel_id == "posicao_estoque_vendas":
+        df = buscar_posicao_estoque_vendas(coligada_formatada)
+        alerta = dbc.Alert(f"✅ {len(df)} itens em estoque encontrados", color="success", duration=4000)
+        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *limpar_inputs
+
+    elif rel_id == "inadimplencia_periodo":
+        df = buscar_inadimplencia(coligada_formatada, data_ini, data_fim)
+        alerta = dbc.Alert(f"✅ {len(df)} títulos em atraso encontrados", color="success", duration=4000)
+        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *limpar_inputs
+
+    # Se cair aqui, pelo menos retorna dash.no_update corretamente para todos os outputs
+    return dash.no_update, dash.no_update, dash.no_update, *manter_inputs
 
 
 # -----------------------------------------------------------------------------
@@ -530,107 +595,212 @@ def selecionar_relatorio(n_clicks):
     prevent_initial_call=True,
 )
 def atualizar_relatorio(dados_json, rel_id):
-    if not dados_json or not rel_id:
-        return dash.no_update, dash.no_update
+    import traceback
+    try:
+        if not dados_json or not rel_id:
+            return dash.no_update, dash.no_update
 
-    import io
-    df = pd.read_json(io.StringIO(dados_json), orient="split")
+        import io
+        df = pd.read_json(io.StringIO(dados_json), orient="split")
 
-    if rel_id == "produto_sem_giro":
-        kpis = calcular_kpis_sem_giro(df)
-        
-        def formatar_moeda(valor):
-            return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        if rel_id == "produto_sem_giro":
+            kpis = calcular_kpis_sem_giro(df)
+            
+            def formatar_moeda(valor):
+                return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-        kpi_row = dbc.Row([
-            dbc.Col(criar_card_kpi("Itens sem Giro", str(kpis["total_itens"]), "📦", COLORS["primary"]), md=3),
-            dbc.Col(criar_card_kpi("Valor Parado", formatar_moeda(kpis["valor_parado"]), "💰", COLORS["danger"]), md=3),
-            dbc.Col(criar_card_kpi("Estoque Total", str(kpis["estoque_total"]), "📊", COLORS["warning"]), md=3),
-            dbc.Col(criar_card_kpi("Grupos Afetados", str(kpis["grupos_afetados"]), "📁", COLORS["secondary"]), md=3),
-        ], className="g-3 mb-4")
+            kpi_row = dbc.Row([
+                dbc.Col(criar_card_kpi("Itens sem Giro", str(kpis["total_itens"]), "📦", COLORS["primary"]), md=3),
+                dbc.Col(criar_card_kpi("Valor Parado", formatar_moeda(kpis["valor_parado"]), "💰", COLORS["danger"]), md=3),
+                dbc.Col(criar_card_kpi("Estoque Total", str(kpis["estoque_total"]), "📊", COLORS["warning"]), md=3),
+                dbc.Col(criar_card_kpi("Grupos Afetados", str(kpis["grupos_afetados"]), "📁", COLORS["secondary"]), md=3),
+            ], className="g-3 mb-4")
 
-        fig = grafico_por_grupo(df)
-        
-        tabela = dash_table.DataTable(
-            data=df.to_dict("records"),
-            columns=[{"name": c, "id": c} for c in df.columns],
-            page_size=15,
-            sort_action="native",
-            filter_action="native",
-            style_table={"overflowX": "auto"},
-            style_cell={"textAlign": "left", "backgroundColor": COLORS["surface"], "color": COLORS["text"]},
-            style_header={"backgroundColor": COLORS["surface2"], "fontWeight": "bold", "color": COLORS["text"]},
-        )
-
-        conteudo = [
-            html.H5("Valor Parado por Grupo"),
-            dcc.Graph(figure=fig),
-            html.Hr(),
-            html.H5("Detalhamento dos Produtos"),
-            tabela
-        ]
-
-        return kpi_row, conteudo
-
-    elif rel_id == "movimento_caixas":
-        # Converte as colunas para maiúsculas para garantir consistência
-        df.columns = [c.upper() for c in df.columns]
-        
-        # Reconverte datas (ficaram como string no JSON)
-        if "DATAMOV" in df.columns:
-            df["DATAMOV"] = pd.to_datetime(df["DATAMOV"], errors="coerce")
-        
-        # Recria colunas derivadas se necessário (VALOR_SINAL)
-        if "VALOR" in df.columns and "DC" in df.columns:
-            df["VALOR_SINAL"] = df.apply(
-                lambda x: x["VALOR"] if x["DC"] == "C" else -x["VALOR"], axis=1
+            fig = grafico_por_grupo(df)
+            
+            tabela = dash_table.DataTable(
+                data=df.to_dict("records"),
+                columns=[{"name": c, "id": c} for c in df.columns],
+                page_size=15,
+                sort_action="native",
+                filter_action="native",
+                style_table={"overflowX": "auto"},
+                style_cell={"textAlign": "left", "backgroundColor": COLORS["surface"], "color": COLORS["text"]},
+                style_header={"backgroundColor": COLORS["surface2"], "fontWeight": "bold", "color": COLORS["text"]},
             )
 
-        kpis = calcular_kpis_movimento(df)
+            conteudo = [
+                html.H5("Valor Parado por Grupo"),
+                dcc.Graph(figure=fig),
+                html.Hr(),
+                html.H5("Detalhamento dos Produtos"),
+                tabela
+            ]
 
-        def formatar_moeda(valor):
-            return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            return kpi_row, conteudo
 
-        kpi_row = dbc.Row([
-            dbc.Col(criar_card_kpi("Total Entradas", formatar_moeda(kpis["total_entradas"]), "📈", COLORS["success"]), md=3),
-            dbc.Col(criar_card_kpi("Total Saídas", formatar_moeda(kpis["total_saidas"]), "📉", COLORS["danger"]), md=3),
-            dbc.Col(criar_card_kpi("Saldo Período", formatar_moeda(kpis["saldo_periodo"]), "⚖️", COLORS["primary"]), md=3),
-            dbc.Col(criar_card_kpi("Lançamentos", str(kpis["n_lancamentos"]), "📝", COLORS["secondary"]), md=3),
-        ], className="g-3 mb-4")
+        elif rel_id == "posicao_estoque_vendas":
+            kpis = calcular_kpis_posicao(df)
+            
+            def formatar_moeda(valor):
+                return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-        fig_pizza = grafico_entradas_saidas_pizza(df)
-        fig_diario = grafico_movimentacao_diaria(df)
-        fig_origem = grafico_por_caixa_banco(df)
-        fig_saldo = grafico_saldo_acumulado(df)
+            kpi_row = dbc.Row([
+                dbc.Col(criar_card_kpi("Total Produtos", str(kpis["total_produtos"]), "📦", COLORS["primary"]), md=3),
+                dbc.Col(criar_card_kpi("Custo Estoque", formatar_moeda(kpis["custo_total_estoque"]), "💰", COLORS["warning"]), md=3),
+                dbc.Col(criar_card_kpi("Vendas (180d)", formatar_moeda(kpis["total_vendas_periodo"]), "📊", COLORS["success"]), md=3),
+                dbc.Col(criar_card_kpi("Abaixo do Mínimo", str(kpis["itens_abaixo_minimo"]), "⚠️", COLORS["danger"]), md=3),
+            ], className="g-3 mb-4")
 
-        tabela = dash_table.DataTable(
-            data=df.to_dict("records"),
-            columns=[{"name": c, "id": c} for c in df.columns if c != "VALOR_SINAL"],
-            page_size=15,
-            sort_action="native",
-            filter_action="native",
-            style_table={"overflowX": "auto"},
-            style_cell={"textAlign": "left", "backgroundColor": COLORS["surface"], "color": COLORS["text"]},
-            style_header={"backgroundColor": COLORS["surface2"], "fontWeight": "bold", "color": COLORS["text"]},
-        )
+            fig_pizza = grafico_custo_por_grupo(df)
+            fig_barras = grafico_vendas_vs_estoque(df)
+            
+            tabela = dash_table.DataTable(
+                data=df.to_dict("records"),
+                columns=[{"name": c, "id": c} for c in df.columns],
+                page_size=15,
+                sort_action="native",
+                filter_action="native",
+                style_table={"overflowX": "auto"},
+                style_cell={"textAlign": "left", "backgroundColor": COLORS["surface"], "color": COLORS["text"]},
+                style_header={"backgroundColor": COLORS["surface2"], "fontWeight": "bold", "color": COLORS["text"]},
+            )
 
-        conteudo = [
-            dbc.Row([
-                dbc.Col([html.H5("Entradas vs Saídas"), dcc.Graph(figure=fig_pizza)], md=4),
-                dbc.Col([html.H5("Saldo Acumulado"), dcc.Graph(figure=fig_saldo)], md=8),
-            ], className="mb-4"),
-            dbc.Row([
-                dbc.Col([html.H5("Movimentação Diária"), dcc.Graph(figure=fig_diario)], md=7),
-                dbc.Col([html.H5("Volume por Caixa/Banco"), dcc.Graph(figure=fig_origem)], md=5),
-            ], className="mb-4"),
-            html.Hr(),
-            html.H5("Detalhamento de Lançamentos"),
-            tabela
-        ]
+            conteudo = [
+                dbc.Row([
+                    dbc.Col([html.H5("Custo por Grupo"), dcc.Graph(figure=fig_pizza)], md=4),
+                    dbc.Col([html.H5("Top 15 Vendas vs Estoque"), dcc.Graph(figure=fig_barras)], md=8),
+                ], className="mb-4"),
+                html.Hr(),
+                html.H5("Detalhamento da Posição"),
+                tabela
+            ]
 
-        return kpi_row, conteudo
+            return kpi_row, conteudo
 
-    return dash.no_update, html.P("Relatório em desenvolvimento...")
+        elif rel_id == "movimento_caixas":
+            # Converte as colunas para maiúsculas para garantir consistência
+            df.columns = [c.upper() for c in df.columns]
+            
+            # Reconverte datas (ficaram como string no JSON)
+            if "DATAMOV" in df.columns:
+                df["DATAMOV"] = pd.to_datetime(df["DATAMOV"], errors="coerce")
+            
+            # Recria colunas derivadas se necessário (VALOR_SINAL)
+            if "VALOR" in df.columns and "DC" in df.columns:
+                df["VALOR_SINAL"] = df.apply(
+                    lambda x: x["VALOR"] if x["DC"] == "C" else -x["VALOR"], axis=1
+                )
+
+            kpis = calcular_kpis_movimento(df)
+
+            def formatar_moeda(valor):
+                return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+            kpi_row = dbc.Row([
+                dbc.Col(criar_card_kpi("Total Entradas", formatar_moeda(kpis["total_entradas"]), "📈", COLORS["success"]), md=3),
+                dbc.Col(criar_card_kpi("Total Saídas", formatar_moeda(kpis["total_saidas"]), "📉", COLORS["danger"]), md=3),
+                dbc.Col(criar_card_kpi("Saldo Período", formatar_moeda(kpis["saldo_periodo"]), "⚖️", COLORS["primary"]), md=3),
+                dbc.Col(criar_card_kpi("Lançamentos", str(kpis["n_lancamentos"]), "📝", COLORS["secondary"]), md=3),
+            ], className="g-3 mb-4")
+
+            fig_pizza = grafico_entradas_saidas_pizza(df)
+            fig_diario = grafico_movimentacao_diaria(df)
+            fig_origem = grafico_por_caixa_banco(df)
+            fig_saldo = grafico_saldo_acumulado(df)
+
+            tabela = dash_table.DataTable(
+                data=df.to_dict("records"),
+                columns=[{"name": c, "id": c} for c in df.columns if c != "VALOR_SINAL"],
+                page_size=15,
+                sort_action="native",
+                filter_action="native",
+                style_table={"overflowX": "auto"},
+                style_cell={"textAlign": "left", "backgroundColor": COLORS["surface"], "color": COLORS["text"]},
+                style_header={"backgroundColor": COLORS["surface2"], "fontWeight": "bold", "color": COLORS["text"]},
+            )
+
+            conteudo = [
+                dbc.Row([
+                    dbc.Col([html.H5("Entradas vs Saídas"), dcc.Graph(figure=fig_pizza)], md=4),
+                    dbc.Col([html.H5("Saldo Acumulado"), dcc.Graph(figure=fig_saldo)], md=8),
+                ], className="mb-4"),
+                dbc.Row([
+                    dbc.Col([html.H5("Movimentação Diária"), dcc.Graph(figure=fig_diario)], md=7),
+                    dbc.Col([html.H5("Volume por Caixa/Banco"), dcc.Graph(figure=fig_origem)], md=5),
+                ], className="mb-4"),
+                html.Hr(),
+                html.H5("Detalhamento de Lançamentos"),
+                tabela
+            ]
+
+            return kpi_row, conteudo
+
+        elif rel_id == "inadimplencia_periodo":
+            # Garante colunas em maiúsculas
+            df.columns = [c.upper() for c in df.columns]
+
+            # Recria colunas derivadas e trata tipos (perdidos no JSON)
+            if "VRLCONT" in df.columns:
+                df["VRLCONT"] = pd.to_numeric(df["VRLCONT"], errors="coerce").fillna(0)
+            if "VALJUR" in df.columns:
+                df["VALJUR"] = pd.to_numeric(df["VALJUR"], errors="coerce").fillna(0)
+            
+            df["VALOR_TOTAL"] = df.get("VRLCONT", 0) + df.get("VALJUR", 0)
+            
+            if "DIASATRASO" in df.columns:
+                df["DIASATRASO"] = pd.to_numeric(df["DIASATRASO"], errors="coerce").fillna(0)
+
+            kpis = calcular_kpis_inadimplencia(df)
+            
+            def formatar_moeda(valor):
+                return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+            kpi_row = dbc.Row([
+                dbc.Col(criar_card_kpi("Total Inadimplente", formatar_moeda(kpis["valor_total"]), "💰", COLORS["danger"]), md=3),
+                dbc.Col(criar_card_kpi("Qtd Títulos", str(kpis["qtd_titulos"]), "📄", COLORS["warning"]), md=3),
+                dbc.Col(criar_card_kpi("Média Atraso", f"{kpis['media_atraso']} dias", "⏳", COLORS["primary"]), md=3),
+                dbc.Col(criar_card_kpi("Maior Atraso", f"{kpis['maior_atraso']} dias", "⚠️", COLORS["secondary"]), md=3),
+            ], className="g-3 mb-4")
+
+            fig_vendedor = grafico_inad_vendedor(df)
+            fig_cidade = grafico_inad_cidade(df)
+            fig_faixas = grafico_faixas_atraso(df)
+            fig_cliente = grafico_inad_cliente(df)
+
+            tabela = dash_table.DataTable(
+                data=df.to_dict("records"),
+                columns=[{"name": c, "id": c} for c in df.columns if c not in ["FAIXA_ATRASO", "VALOR_TOTAL"]],
+                page_size=15,
+                sort_action="native",
+                filter_action="native",
+                style_table={"overflowX": "auto"},
+                style_cell={"textAlign": "left", "backgroundColor": COLORS["surface"], "color": COLORS["text"]},
+                style_header={"backgroundColor": COLORS["surface2"], "fontWeight": "bold", "color": COLORS["text"]},
+            )
+
+            conteudo = [
+                dbc.Row([
+                    dbc.Col([html.H5("Inadimplência por Faixa de Atraso"), dcc.Graph(figure=fig_faixas)], md=6),
+                    dbc.Col([html.H5("Top 10 Cidades"), dcc.Graph(figure=fig_cidade)], md=6),
+                ], className="mb-4"),
+                dbc.Row([
+                    dbc.Col([html.H5("Top 10 Clientes que Mais Devem"), dcc.Graph(figure=fig_cliente)], md=6),
+                    dbc.Col([html.H5("Top 10 Vendedores"), dcc.Graph(figure=fig_vendedor)], md=6),
+                ], className="mb-4"),
+                html.Hr(),
+                html.H5("Detalhamento de Títulos"),
+                tabela
+            ]
+
+            return kpi_row, conteudo
+
+        return dash.no_update, html.P("Relatório em desenvolvimento...")
+
+    except Exception as e:
+        print(f"❌ ERRO NO CALLBACK RELATORIOS: {str(e)}")
+        traceback.print_exc()
+        return dash.no_update, [html.Div(f"Erro ao processar relatório: {str(e)}", className="text-danger")]
 
 
 # =============================================================================

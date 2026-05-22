@@ -112,6 +112,67 @@ SQL_MOVIMENTO_CAIXAS = """
 """
 
 # -----------------------------------------------------------------------------
+# QUERY: Posição de Estoque vs. Vendas
+# -----------------------------------------------------------------------------
+# Parâmetros obrigatórios:
+#   :COLIGADA → Código da coligada/empresa (string, ex: '001')
+#
+# Retorna posição de estoque comparada com vendas dos últimos 180 dias.
+# -----------------------------------------------------------------------------
+SQL_POSICAO_ESTOQUE_VENDAS = """
+    select  produto.codpro, produto.despro, estoque.datcad,
+    produto.coduni, grupo.descricao as Grupo, subgrupo.descricao as subGrupo,
+    estoque.estoque,estoque.estmin, estoque.medio, (estoque.estoque * estoque.medio) as CustoTotal,
+    sum(sainota1.quant) TotalVenda,
+    sum(sainota1.quant / 6) MediaEstoque
+    from estoque
+    inner join produto on produto.codpro = estoque.codpro
+    left outer join grupo on produto.grupo = grupo.codigo
+    left outer join subgrupo on grupo.codigo = subgrupo.grupo
+    and produto.subgrupo = subgrupo.subgrupo
+    left outer join sainota1 on sainota1.codpro = estoque.codpro
+    inner join sainota on sainota1.id = sainota.id and estoque.cod_emp = sainota.cod_emp
+    and sainota.fechado ='S'
+    and sainota.notcan ='N'
+    inner join tipvenda on sainota.tipvenda = tipvenda.codigo
+    and tipvenda.entramovimento = 'S'
+    and sainota.dat_Che >= DATEADD( - 180 DAY TO CURRENT_DATE )  --se quiser por ano mudar de 180 para 365
+    where estoque.cod_emp = :COLIGADA
+    and estoque.estoque > 0
+    and estoque.ativo ='S'
+    group by produto.codpro, produto.despro, estoque.datcad,
+    produto.coduni, grupo.descricao,  subgrupo.descricao,
+    estoque.estoque,estoque.estmin, estoque.medio
+    order by 1
+"""
+
+# -----------------------------------------------------------------------------
+# QUERY: Inadimplência Período
+# -----------------------------------------------------------------------------
+# Parâmetros obrigatórios:
+#   :COLIGADA    → Código da coligada/empresa (inteiro)
+#   :DATVEN_INI  → Data de vencimento inicial (string 'YYYY-MM-DD')
+#   :DATVEN_FIN  → Data de vencimento final (string 'YYYY-MM-DD')
+# -----------------------------------------------------------------------------
+SQL_INADIMPLENCIA_PERIODO = """
+    select caconrec.datemi, CACONREC.numdoc, sainota.nota, caconrec.datven,
+    CACONREC.codrec, CACONREC.nomcli, CACONREC.cidcli, CACONREC.ufcli,
+    CACONREC.codfun, funcionario.nomfun, sainota.codpag,
+    formapag.despag,tipoconta.destip, caconrec.vrlcont ,  caconrec.valjur,
+    (current_date - cast(caconrec.datven as date)) as DiasAtraso
+    from Caconrec
+    inner join funcionario on caconrec.codfun = funcionario.codfun
+    inner join tipoconta on caconrec.tipdoc = tipoconta.codtip
+    left outer join sainota on caconrec.idped = sainota.id
+    and sainota.cod_emp = caconrec.codemp
+    left outer join formapag on sainota.codpag = formapag.codpag
+    where caconrec.codemp = :COLIGADA
+    and caconrec.datven BETWEEN :DATVEN_INI AND :DATVEN_FIN
+    and caconrec.pr = 0
+    and caconrec.DATQUI IS NULL
+"""
+
+# -----------------------------------------------------------------------------
 # Adicione novas queries abaixo conforme for criando mais relatórios.
 # Exemplo de estrutura para uma futura query:
 # -----------------------------------------------------------------------------

@@ -38,8 +38,8 @@ def buscar_notas(coligada: str, data_ini: str, data_fim: str) -> pd.DataFrame:
     """
     parametros = {
         "pcodemp": coligada,
-        "pdatai":  data_ini,
-        "pdataf":  data_fim,
+        "pdatai": data_ini,
+        "pdataf": data_fim,
     }
 
     df = executar_query(SQL_NOTAS_SAIDA, parametros)
@@ -91,23 +91,23 @@ def calcular_kpis(df: pd.DataFrame) -> dict:
     """
     if df.empty:
         return {
-            "total_notas":     0,
-            "valor_total":     0.0,
-            "ticket_medio":    0.0,
-            "notas_ativas":    0,
-            "notas_canceladas":0,
+            "total_notas": 0,
+            "valor_total": 0.0,
+            "ticket_medio": 0.0,
+            "notas_ativas": 0,
+            "notas_canceladas": 0,
             "clientes_unicos": 0,
         }
 
     df_ativas = df[df["STATUS_CANCEL"] == "Ativa"]
 
     return {
-        "total_notas":      len(df),
-        "valor_total":      df_ativas["VALOR"].sum(),
-        "ticket_medio":     df_ativas["VALOR"].mean() if len(df_ativas) > 0 else 0,
-        "notas_ativas":     len(df_ativas),
+        "total_notas": len(df),
+        "valor_total": df_ativas["VALOR"].sum(),
+        "ticket_medio": df_ativas["VALOR"].mean() if len(df_ativas) > 0 else 0,
+        "notas_ativas": len(df_ativas),
         "notas_canceladas": len(df[df["STATUS_CANCEL"] == "Cancelada"]),
-        "clientes_unicos":  df_ativas["CODCLI"].nunique(),
+        "clientes_unicos": df_ativas["CODCLI"].nunique(),
     }
 
 
@@ -117,7 +117,7 @@ def calcular_kpis(df: pd.DataFrame) -> dict:
 
 # Configuração visual padrão aplicada a todos os gráficos
 _LAYOUT_PADRAO = dict(
-    paper_bgcolor="rgba(0,0,0,0)",   # Fundo transparente (herda do CSS)
+    paper_bgcolor="rgba(0,0,0,0)",  # Fundo transparente (herda do CSS)
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(color=COLORS["text"], family="Inter, sans-serif"),
     margin=dict(l=10, r=10, t=40, b=10),
@@ -154,7 +154,7 @@ def grafico_faturamento_diario(df: pd.DataFrame) -> go.Figure:
         title="Faturamento Diário",
         labels={"DAT_EMI": "Data", "VALOR": "Valor (R$)"},
         color_discrete_sequence=[COLORS["primary"]],
-        markers=True,          # Pontos nos vértices da linha
+        markers=True,  # Pontos nos vértices da linha
     )
 
     # Área preenchida sob a linha
@@ -182,20 +182,20 @@ def grafico_por_vendedor(df: pd.DataFrame) -> go.Figure:
         df_ativas.groupby("NOMFUN")["VALOR"]
         .sum()
         .reset_index()
-        .sort_values("VALOR", ascending=True)   # ascending=True → maior fica no topo
-        .tail(10)                                # Top 10
+        .sort_values("VALOR", ascending=True)  # ascending=True → maior fica no topo
+        .tail(10)  # Top 10
     )
 
     fig = px.bar(
         por_vendedor,
         x="VALOR",
         y="NOMFUN",
-        orientation="h",            # Horizontal
+        orientation="h",  # Horizontal
         title="Top 10 Vendedores por Faturamento",
         labels={"NOMFUN": "Vendedor", "VALOR": "Valor (R$)"},
         color="VALOR",
         color_continuous_scale=["#1E3A5F", COLORS["primary"]],
-        text_auto=".2s",            # Mostra o valor dentro da barra
+        text_auto=".2s",  # Mostra o valor dentro da barra
     )
 
     fig.update_xaxes(tickprefix="R$ ", tickformat=",.2f", gridcolor="rgba(255,255,255,0.07)")
@@ -226,7 +226,7 @@ def grafico_por_classificacao(df: pd.DataFrame) -> go.Figure:
         names="CLASSIFICACAO",
         values="VALOR",
         title="Faturamento por Classificação de Venda",
-        hole=0.45,                  # hole > 0 = donut chart
+        hole=0.45,  # hole > 0 = donut chart
         color_discrete_sequence=COLOR_SEQUENCE,
     )
 
@@ -336,7 +336,7 @@ def grafico_canceladas_vs_ativas(df: pd.DataFrame) -> go.Figure:
         labels={"MES_ANO": "Mês", "VALOR": "Valor (R$)", "STATUS_CANCEL": "Status"},
         barmode="stack",
         color_discrete_map={
-            "Ativa":     COLORS["primary"],
+            "Ativa": COLORS["primary"],
             "Cancelada": COLORS["danger"],
         },
         text_auto=".2s",

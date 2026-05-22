@@ -9,6 +9,7 @@ from database.connection import executar_query
 from database.queries import SQL_MOVIMENTO_CAIXAS
 from config import COLORS, COLOR_SEQUENCE
 
+
 def buscar_movimento_caixas(data_ini: str, data_fim: str) -> pd.DataFrame:
     """
     Busca o movimento de caixas e bancos no banco de dados.
@@ -29,7 +30,7 @@ def buscar_movimento_caixas(data_ini: str, data_fim: str) -> pd.DataFrame:
     # Tratamento de tipos
     if "VALOR" in df.columns:
         df["VALOR"] = pd.to_numeric(df["VALOR"], errors="coerce").fillna(0)
-    
+
     if "DATAMOV" in df.columns:
         df["DATAMOV"] = pd.to_datetime(df["DATAMOV"])
 
@@ -43,6 +44,7 @@ def buscar_movimento_caixas(data_ini: str, data_fim: str) -> pd.DataFrame:
         df["VALOR_SINAL"] = 0.0
 
     return df
+
 
 def calcular_kpis_movimento(df: pd.DataFrame) -> dict:
     """
@@ -67,6 +69,7 @@ def calcular_kpis_movimento(df: pd.DataFrame) -> dict:
         "saldo_periodo": saldo,
         "n_lancamentos": len(df)
     }
+
 
 def grafico_entradas_saidas_pizza(df: pd.DataFrame) -> go.Figure:
     """
@@ -96,6 +99,7 @@ def grafico_entradas_saidas_pizza(df: pd.DataFrame) -> go.Figure:
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     return fig
+
 
 def grafico_movimentacao_diaria(df: pd.DataFrame) -> go.Figure:
     """
@@ -129,6 +133,7 @@ def grafico_movimentacao_diaria(df: pd.DataFrame) -> go.Figure:
     )
     return fig
 
+
 def grafico_por_caixa_banco(df: pd.DataFrame) -> go.Figure:
     """
     Gráfico de barras: movimentação por Caixa/Banco.
@@ -141,7 +146,7 @@ def grafico_por_caixa_banco(df: pd.DataFrame) -> go.Figure:
         df["NOME_ORIGEM"] = "NÃO IDENTIFICADO"
     else:
         df["NOME_ORIGEM"] = df["NOME_ORIGEM"].fillna("NÃO IDENTIFICADO")
-    
+
     df_origem = df.groupby("NOME_ORIGEM")["VALOR"].sum().abs().reset_index()
     df_origem = df_origem.sort_values("VALOR", ascending=False).head(10)
 
@@ -163,6 +168,7 @@ def grafico_por_caixa_banco(df: pd.DataFrame) -> go.Figure:
         yaxis=dict(gridcolor="rgba(255,255,255,0.07)"),
     )
     return fig
+
 
 def grafico_saldo_acumulado(df: pd.DataFrame) -> go.Figure:
     """
@@ -193,11 +199,12 @@ def grafico_saldo_acumulado(df: pd.DataFrame) -> go.Figure:
     )
     return fig
 
+
 def _grafico_vazio(mensagem: str) -> go.Figure:
     fig = go.Figure()
     fig.add_annotation(
-        text=mensagem, 
-        showarrow=False, 
+        text=mensagem,
+        showarrow=False,
         font=dict(size=14, color=COLORS["neutral"]),
         xref="paper", yref="paper", x=0.5, y=0.5
     )

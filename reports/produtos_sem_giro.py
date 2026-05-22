@@ -9,6 +9,7 @@ from database.connection import executar_query
 from database.queries import SQL_PRODUTOS_SEM_GIRO
 from config import COLORS, COLOR_SEQUENCE
 
+
 def buscar_produtos_sem_giro(coligada: str, dias: int) -> pd.DataFrame:
     """
     Busca os produtos sem giro no banco de dados.
@@ -17,7 +18,7 @@ def buscar_produtos_sem_giro(coligada: str, dias: int) -> pd.DataFrame:
     if dias > 0:
         dias = -dias
     elif dias == 0:
-        dias = -90 # Default
+        dias = -90  # Default
 
     parametros = {
         "codemp": coligada,
@@ -39,6 +40,7 @@ def buscar_produtos_sem_giro(coligada: str, dias: int) -> pd.DataFrame:
 
     return df
 
+
 def calcular_kpis_sem_giro(df: pd.DataFrame) -> dict:
     """
     Calcula indicadores para o relatório de produtos sem giro.
@@ -57,6 +59,7 @@ def calcular_kpis_sem_giro(df: pd.DataFrame) -> dict:
         "estoque_total": df["ESTOQUE"].sum(),
         "grupos_afetados": df["GRUPO"].nunique()
     }
+
 
 def grafico_por_grupo(df: pd.DataFrame) -> go.Figure:
     """
@@ -87,11 +90,12 @@ def grafico_por_grupo(df: pd.DataFrame) -> go.Figure:
     )
     return fig
 
+
 def _grafico_vazio(mensagem: str) -> go.Figure:
     fig = go.Figure()
     fig.add_annotation(
-        text=mensagem, 
-        showarrow=False, 
+        text=mensagem,
+        showarrow=False,
         font=dict(size=14, color=COLORS["neutral"]),
         xref="paper", yref="paper", x=0.5, y=0.5
     )
