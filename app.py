@@ -63,6 +63,14 @@ from reports.inadimplencia import (
     grafico_faixas_atraso,
     grafico_por_cliente as grafico_inad_cliente,
 )
+from reports.faturamento_por_estoque import (
+    buscar_faturamento_por_estoque,
+    calcular_kpis_faturamento,
+    grafico_faturamento_por_grupo,
+    grafico_vendedor_comissao,
+    grafico_faturamento_temporal,
+    grafico_por_tipo_documento,
+)
 
 # =============================================================================
 # INICIALIZAÇÃO DO APP
@@ -257,7 +265,7 @@ def alternar_filtros(rel_id):
     elif rel_id == "movimento_caixas":
         # Esconde coligada conforme pedido, mas mantém datas
         return {"display": "none"}, {"display": "block"}, {"display": "block"}, {"display": "none"}
-    elif rel_id == "comercial":
+    elif rel_id in ["comercial", "faturamento_por_estoque"]:
         return {"display": "block"}, {"display": "block"}, {"display": "block"}, {"display": "none"}
     elif rel_id is None:
         # Quando entra na página de relatórios sem selecionar nenhum
@@ -365,6 +373,11 @@ def consultar_dados(n_clicks, rel_id, coligada, data_ini, data_fim, dias):
     elif rel_id == "inadimplencia_periodo":
         df = buscar_inadimplencia(coligada_formatada, data_ini, data_fim)
         alerta = dbc.Alert(f"✅ {len(df)} títulos em atraso encontrados", color="success", duration=4000)
+        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *limpar_inputs
+
+    elif rel_id == "faturamento_por_estoque":
+        df = buscar_faturamento_por_estoque(coligada_formatada, data_ini, data_fim)
+        alerta = dbc.Alert(f"✅ {len(df)} registros de faturamento encontrados", color="success", duration=4000)
         return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *limpar_inputs
 
     # Se cair aqui, pelo menos retorna dash.no_update corretamente para todos os outputs
@@ -795,6 +808,68 @@ def atualizar_relatorio(dados_json, rel_id):
 
             return kpi_row, conteudo
 
+        elif rel_id == "faturamento_por_estoque":
+            # Converte as colunas de data
+            if "DAT_CHE" in df.columns:
+                df["DAT_CHE"] = pd.to_datetime(df["DAT_CHE"], errors="coerce")
+
+            kpis = calcular_kpis_faturamento(df)
+
+            def formatar_moeda(valor):
+                return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+            kpi_row = dbc.Row([
+                dbc.Col(criar_card_kpi("Faturamento Total", formatar_moeda(kpis["faturamento_total"]), "💰", COLORS["success"]), md=3),
+                dbc.Col(criar_card_kpi("Margem Bruta", formatar_moeda(kpis["margem_bruta"]), "⚖️", COLORS["primary"]), md=3),
+                dbc.Col(criar_card_kpi("Comissão Total", formatar_moeda(kpis["comissao_total"]), "💸", COLORS["warning"]), md=3),
+                dbc.Col(criar_card_kpi("Qtd Itens Vendidos", f"{kpis['qtd_itens']:,.0f}".replace(",", "."), "📦", COLORS["secondary"]), md=3),
+            ], className="g-3 mb-4")
+
+            fig_grupo = grafico_faturamento_por_grupo(df)
+            fig_vendedor = grafico_vendedor_comissao(df)
+            fig_temporal = grafico_faturamento_temporal(df)
+            fig_doc = grafico_por_tipo_documento(df)
+
+            tabela = dash_table.DataTable(
+                data=df.to_dict("records"),
+                columns=[{"name": c, "id": c} for c in df.columns if c not in ["HORAS"]],
+                page_size=15,
+                sort_action="native",
+                filter_action="native",
+                style_table={"overflowX": "auto"},
+                style_cell={"textAlign": "left", "backgroundColor": COLORS["surface"], "color": COLORS["text"]},
+                style_header={"backgroundColor": COLORS["surface2"], "fontWeight": "bold", "color": COLORS["text"]},
+            )
+
+            # Para formatação de exibição das datas na tabela
+            df_tabela = df.copy()
+            if "DAT_CHE" in df_tabela.columns:
+                df_tabela["DAT_CHE"] = df_tabela["DAT_CHE"].dt.strftime("%d/%m/%Y")
+
+            # Formata colunas de valor na tabela
+            cols_formatar = ["PRECO", "TOTALPRODUTO", "ACRESCIMO", "VALCOMISSAO", "CUSTO", "TOTALACRESCIMO"]
+            for col in cols_formatar:
+                if col in df_tabela.columns:
+                    df_tabela[col] = df_tabela[col].apply(formatar_moeda)
+
+            tabela.data = df_tabela.to_dict("records")
+
+            conteudo = [
+                dbc.Row([
+                    dbc.Col([html.H5("Evolução Temporal do Faturamento"), dcc.Graph(figure=fig_temporal)], md=8),
+                    dbc.Col([html.H5("Faturamento por Tipo de Documento"), dcc.Graph(figure=fig_doc)], md=4),
+                ], className="mb-4"),
+                dbc.Row([
+                    dbc.Col([html.H5("Faturamento e Comissão por Vendedor"), dcc.Graph(figure=fig_vendedor)], md=6),
+                    dbc.Col([html.H5("Top 15 Grupos de Produtos"), dcc.Graph(figure=fig_grupo)], md=6),
+                ], className="mb-4"),
+                html.Hr(),
+                html.H5("Detalhamento do Faturamento por Estoque"),
+                tabela
+            ]
+
+            return kpi_row, conteudo
+
         return dash.no_update, html.P("Relatório em desenvolvimento...")
 
     except Exception as e:
@@ -844,7 +919,7 @@ def _kpis_placeholder():
 
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print(f"  🚀 {APP_CONFIG['title']}")
+    print(f"  [START] {APP_CONFIG['title']}")
     print("="*60)
     print(f"  Acesse: http://localhost:{APP_CONFIG['port']}")
     print(f"  Na rede: http://SEU_IP:{APP_CONFIG['port']}")

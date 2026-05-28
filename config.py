@@ -82,6 +82,13 @@ RELATORIOS_CONFIG = {
         "sql": "SELECT FIRST 10 PRODUTO, SUM(VALOR) AS TOTAL FROM NOTAS GROUP BY PRODUTO ORDER BY 2 DESC",
         "tipo_grafico": "bar"
     },
+    "faturamento_por_estoque": {
+        "titulo": "Faturamento por estoque",
+        "setor": "Vendas",
+        "sql": "SQL_FATURAMENTO_POR_ESTOQUE",
+        "tipo_grafico": "multi",
+        "parametros": ["DATAI", "DATAF", "COLIGADA"]
+    },
     
     # SETOR: ESTOQUE
     "produto_sem_giro": {

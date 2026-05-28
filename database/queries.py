@@ -182,3 +182,104 @@ SQL_INADIMPLENCIA_PERIODO = """
 #     WHERE ativo = 'S'
 #     ORDER BY noment
 # """
+
+# -----------------------------------------------------------------------------
+# QUERY: Faturamento por Estoque
+# -----------------------------------------------------------------------------
+# Parâmetros obrigatórios:
+#   :DATAI    → Data inicial (string 'YYYY-MM-DD')
+#   :DATAF    → Data final (string 'YYYY-MM-DD')
+#   :COLIGADA → Código da coligada/empresa (string, ex: '001')
+# -----------------------------------------------------------------------------
+SQL_FATURAMENTO_POR_ESTOQUE = """
+    with  Vendas as(
+    select
+    sainota.dat_che,
+    cast(sainota.horcad as time) as Horas,
+    tipvenda.descricao,
+    sainota.numped,
+    sainota.nota,
+    sainota.codcli,
+    sainota.noment,
+    sainota.cidendent,
+    sainota.ufendent,
+    grupo.descricao as Grupo,
+    subgrupo.descricao as SubGrupo,
+    sainota1.codpro,
+    sainota1.despro,
+    sainota.codfun,
+    sainota.acrecimo,
+    sainota.val_frete,
+    sainota.val_outrotrib,
+    sainota.val_outro,
+    funcionario.nomfun,
+    sainota1.quant,
+    sainota1.preco,
+
+    coalesce(round(sum((sainota1.preco * sainota1.quant)  * (1-(sainota1.Desconto1/100)) *(1-(sainota.Desconto1/100))),2),0) TotalVenda,
+    sainota1.desconto,
+    sainota.codtip,
+    tipoconta.destip,
+    sainota1.percomissao,
+
+    coalesce(round(Sum(((sainota1.preco * sainota1.quant)  * (1-(sainota1.Desconto1/100)) *(1-(sainota.Desconto1/100))) * Sainota1.percomissao/100),2),0) valComissao,
+    sainota1.custo,
+
+    coalesce(ROUND(sum(( (sainota.val_frete + sainota.val_outro + sainota.acrecimo + sainota.val_outrotrib) /( sainota.valor - (sainota.val_frete + sainota.val_outro + sainota.acrecimo + sainota.val_outrotrib)) ) * 100) ,2) , 0)PerAcrescimo
+
+    from sainota
+    inner join sainota1 on sainota1.id = sainota.id
+    inner join produto on sainota1.codpro = produto.codpro
+    inner join grupo on produto.grupo = grupo.codigo
+    inner join subgrupo on grupo.codigo = subgrupo.grupo
+    and produto.subgrupo = subgrupo.subgrupo
+
+    inner join tipvenda on sainota.tipvenda = tipvenda.codigo
+    inner join funcionario on sainota1.codfun = funcionario.codfun
+    inner join estoque on (sainota1.codpro = estoque.codpro and  sainota1.cod_emp = estoque.cod_emp)
+    inner join formapag on sainota.codpag = formapag.codpag
+    inner join tipoconta on sainota.codtip = tipoconta.codtip
+
+    where sainota.dat_emi BETWEEN :DATAI AND :DATAF
+    AND SAINOTA.COD_EMP = :COLIGADA
+    and sainota.fechado = 'S'
+    and sainota.notcan = 'N'
+    and tipvenda.entramovimento = 'S'
+    and sainota.codfun is not null
+    group by
+    sainota.dat_che,
+    sainota.horcad,
+    tipvenda.descricao,
+    sainota.numped,
+    sainota.nota,
+    sainota.codcli,
+    sainota.noment,
+    sainota.cidendent,
+    sainota.ufendent,
+    grupo.descricao,
+    subgrupo.descricao,
+    sainota1.codpro,
+    sainota1.despro,
+    sainota.codfun,
+    sainota.acrecimo,
+    sainota.val_frete,
+    sainota.val_outrotrib,
+    sainota.val_outro,
+    funcionario.nomfun,
+    sainota1.quant,
+    sainota1.preco,
+    sainota1.desconto,
+    sainota.codtip,
+    tipoconta.destip,
+    sainota1.percomissao,
+    sainota1.custo
+    )
+
+    select dat_che, Horas, descricao, numped, nota, codcli, noment,
+    cidendent, ufendent, Grupo, SubGrupo, codpro, despro, codfun,
+    nomfun, quant, preco, TotalVenda as TotalProduto, desconto, codtip, destip, percomissao,
+    valComissao, custo, ROUND(((PerAcrescimo/100) * TOTALVENDA) ,2)Acrescimo,
+    ROUND((TotalVenda + ((PerAcrescimo/100) * TOTALVENDA)),2) TotalAcrescimo
+    from vendas
+"""
+
