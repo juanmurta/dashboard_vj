@@ -275,31 +275,6 @@ def alternar_filtros(rel_id):
         return {"display": "block"}, {"display": "block"}, {"display": "block"}, {"display": "none"}
 
 # -----------------------------------------------------------------------------
-# CALLBACK 0: Formatar Coligada com 3 dígitos (zfill)
-# -----------------------------------------------------------------------------
-@app.callback(
-    Output("input-coligada", "value", allow_duplicate=True),
-    Input("input-coligada", "n_submit"),
-    State("input-coligada", "value"),
-    prevent_initial_call=True
-)
-def formatar_coligada_enter(n_submit, valor):
-    if valor:
-        return str(valor).strip().zfill(3)
-    return dash.no_update
-
-@app.callback(
-    Output("input-coligada", "value", allow_duplicate=True),
-    Input("input-coligada", "blur"),
-    State("input-coligada", "value"),
-    prevent_initial_call=True
-)
-def formatar_coligada_blur(n_blur, valor):
-    if valor:
-        return str(valor).strip().zfill(3)
-    return dash.no_update
-
-# -----------------------------------------------------------------------------
 # CALLBACK 1: Consultar banco e guardar dados no Store
 # -----------------------------------------------------------------------------
 @app.callback(
@@ -325,25 +300,20 @@ def consultar_dados(n_clicks, rel_id, coligada, data_ini, data_fim, dias):
     # Valores para manter os inputs em caso de erro de validação
     manter_inputs = [dash.no_update, dash.no_update, dash.no_update, dash.no_update]
 
-    if not coligada and rel_id != "movimento_caixas":
-        alerta = dbc.Alert("Preencha a coligada", color="warning")
+    coligadas = coligada if isinstance(coligada, (list, tuple, set)) else [coligada] if coligada else []
+
+    if not coligadas and rel_id != "movimento_caixas":
+        alerta = dbc.Alert("Selecione ao menos uma coligada", color="warning")
         return dash.no_update, dash.no_update, alerta, *manter_inputs
 
-    # Valores para limpar os inputs após consulta bem-sucedida (pedido do usuário)
-    # Limpa apenas coligada (e dias se quiser resetar), mantém as datas.
-    limpar_inputs = ["", dash.no_update, dash.no_update, ""]
-
-    # Garante coligada com 3 dígitos (ex: 2 -> 002)
-    coligada_formatada = str(coligada).strip().zfill(3) if coligada else "001"
-
     if rel_id == "comercial" or rel_id is None:
-        df = buscar_notas(coligada_formatada, data_ini, data_fim)
+        df = buscar_notas(coligadas, data_ini, data_fim)
         if not df.empty:
             df["DAT_EMI"] = df["DAT_EMI"].astype(str)
             df["DAT_CHE"] = df["DAT_CHE"].astype(str)
         
         alerta = dbc.Alert(f"✅ {len(df)} notas encontradas", color="success", duration=4000)
-        return df.to_json(date_format="iso", orient="split"), dash.no_update, alerta, *limpar_inputs
+        return df.to_json(date_format="iso", orient="split"), dash.no_update, alerta, *manter_inputs
 
     elif rel_id == "movimento_caixas":
         df = buscar_movimento_caixas(data_ini, data_fim)
@@ -353,7 +323,7 @@ def consultar_dados(n_clicks, rel_id, coligada, data_ini, data_fim, dias):
             if "DATAMOV" in df.columns:
                 df["DATAMOV"] = df["DATAMOV"].astype(str)
         alerta = dbc.Alert(f"✅ {len(df)} lançamentos encontrados", color="success", duration=4000)
-        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *limpar_inputs
+        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *manter_inputs
 
     elif rel_id == "produto_sem_giro":
         try:
@@ -361,24 +331,24 @@ def consultar_dados(n_clicks, rel_id, coligada, data_ini, data_fim, dias):
         except (ValueError, TypeError):
             dias_val = 90
         
-        df = buscar_produtos_sem_giro(coligada_formatada, dias_val)
+        df = buscar_produtos_sem_giro(coligadas, dias_val)
         alerta = dbc.Alert(f"✅ {len(df)} produtos encontrados", color="success", duration=4000)
-        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *limpar_inputs
+        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *manter_inputs
     
     elif rel_id == "posicao_estoque_vendas":
-        df = buscar_posicao_estoque_vendas(coligada_formatada)
+        df = buscar_posicao_estoque_vendas(coligadas)
         alerta = dbc.Alert(f"✅ {len(df)} itens em estoque encontrados", color="success", duration=4000)
-        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *limpar_inputs
+        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *manter_inputs
 
     elif rel_id == "inadimplencia_periodo":
-        df = buscar_inadimplencia(coligada_formatada, data_ini, data_fim)
+        df = buscar_inadimplencia(coligadas, data_ini, data_fim)
         alerta = dbc.Alert(f"✅ {len(df)} títulos em atraso encontrados", color="success", duration=4000)
-        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *limpar_inputs
+        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *manter_inputs
 
     elif rel_id == "faturamento_por_estoque":
-        df = buscar_faturamento_por_estoque(coligada_formatada, data_ini, data_fim)
+        df = buscar_faturamento_por_estoque(coligadas, data_ini, data_fim)
         alerta = dbc.Alert(f"✅ {len(df)} registros de faturamento encontrados", color="success", duration=4000)
-        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *limpar_inputs
+        return dash.no_update, df.to_json(date_format="iso", orient="split"), alerta, *manter_inputs
 
     # Se cair aqui, pelo menos retorna dash.no_update corretamente para todos os outputs
     return dash.no_update, dash.no_update, dash.no_update, *manter_inputs

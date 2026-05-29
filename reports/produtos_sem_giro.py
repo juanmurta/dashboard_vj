@@ -5,7 +5,7 @@
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from database.connection import executar_query
+from database.connection import executar_query_por_coligadas
 from database.queries import SQL_PRODUTOS_SEM_GIRO
 from config import COLORS, COLOR_SEQUENCE
 
@@ -21,11 +21,10 @@ def buscar_produtos_sem_giro(coligada: str, dias: int) -> pd.DataFrame:
         dias = -90  # Default
 
     parametros = {
-        "codemp": coligada,
         "DIAS": dias
     }
 
-    df = executar_query(SQL_PRODUTOS_SEM_GIRO, parametros)
+    df = executar_query_por_coligadas(SQL_PRODUTOS_SEM_GIRO, parametros, "codemp", coligada)
 
     if df.empty:
         return df

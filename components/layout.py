@@ -7,8 +7,51 @@
 
 from dash import html, dcc
 import dash_bootstrap_components as dbc
+import pandas as pd
 from config import COLORS
 from datetime import date, timedelta
+from database.connection import executar_query
+from database.queries import SQL_COLIGADAS_ATIVAS
+
+
+def _obter_opcoes_coligadas_ativas() -> list:
+    """Busca as coligadas ativas no banco para popular o filtro."""
+    df = executar_query(SQL_COLIGADAS_ATIVAS)
+    if df.empty:
+        return []
+
+    colunas = {col.upper(): col for col in df.columns}
+    coluna_codigo = next(
+        (colunas[chave] for chave in ("COD_EMP", "CODEMP", "CODIGO", "COLIGADA", "COD") if chave in colunas),
+        df.columns[0],
+    )
+    coluna_nome = next(
+        (colunas[chave] for chave in ("NOM_EMP", "RAZ_EMP", "NOME", "RAZAO", "RAZAOSOCIAL", "DESCRICAO", "FANTASIA", "NOMEFANTASIA", "EMPRESA") if chave in colunas),
+        None,
+    )
+
+    opcoes = []
+    vistos = set()
+    for _, linha in df.iterrows():
+        codigo = str(linha[coluna_codigo]).strip()
+        if not codigo or codigo.lower() == "nan":
+            continue
+        if codigo.isdigit():
+            codigo = codigo.zfill(3)
+
+        if codigo in vistos:
+            continue
+        vistos.add(codigo)
+
+        if coluna_nome is not None:
+            nome = str(linha[coluna_nome]).strip()
+            label = f"{codigo} - {nome}" if nome and nome.lower() != "nan" else codigo
+        else:
+            label = codigo
+
+        opcoes.append({"label": label, "value": codigo})
+
+    return opcoes
 
 
 def criar_card_kpi(titulo: str, valor: str, icone: str, cor: str = None) -> dbc.Card:
@@ -51,6 +94,8 @@ def criar_filtros() -> dbc.Card:
     """
     hoje = date.today()
     primeiro_dia_mes = hoje.replace(day=1)
+    opcoes_coligadas = _obter_opcoes_coligadas_ativas()
+    valores_padrao = [opcao["value"] for opcao in opcoes_coligadas]
 
     return dbc.Card(
         dbc.CardBody([
@@ -58,13 +103,15 @@ def criar_filtros() -> dbc.Card:
             dbc.Row([
                 # Campo: Coligada
                 dbc.Col([
-                    dbc.Label("Coligada (Empresa)", html_for="input-coligada"),
-                    dbc.Input(
+                    dbc.Label("Coligadas (Empresas)", html_for="input-coligada"),
+                    dcc.Dropdown(
                         id="input-coligada",
-                        type="text",
-                        value="001",        # Valor padrão — use o cod_emp exato do banco
-                        placeholder="Ex: 001",
-                        className="dash-input",
+                        options=opcoes_coligadas,
+                        value=valores_padrao,
+                        multi=True,
+                        clearable=True,
+                        placeholder="Selecione uma ou mais coligadas ativas",
+                        className="dash-input coligada-dropdown",
                     ),
                 ], id="container-coligada", xs=12, sm=4, md=2),
 

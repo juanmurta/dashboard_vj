@@ -5,7 +5,7 @@
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from database.connection import executar_query
+from database.connection import executar_query_por_coligadas
 from database.queries import SQL_FATURAMENTO_POR_ESTOQUE
 from config import COLORS, COLOR_SEQUENCE
 
@@ -17,10 +17,9 @@ def buscar_faturamento_por_estoque(coligada: str, data_ini: str, data_fim: str) 
     parametros = {
         "DATAI": data_ini,
         "DATAF": data_fim,
-        "COLIGADA": coligada
     }
 
-    df = executar_query(SQL_FATURAMENTO_POR_ESTOQUE, parametros)
+    df = executar_query_por_coligadas(SQL_FATURAMENTO_POR_ESTOQUE, parametros, "COLIGADA", coligada)
 
     if df.empty:
         return df

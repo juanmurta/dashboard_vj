@@ -147,6 +147,34 @@ body {
   font-size: 14px !important;
 }
 
+.coligada-dropdown .Select-control {
+  background: var(--surface2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  min-height: 38px;
+}
+
+.coligada-dropdown .Select-value-label,
+.coligada-dropdown .Select-placeholder,
+.coligada-dropdown .Select-input input {
+  color: var(--text) !important;
+}
+
+.coligada-dropdown .Select-menu-outer {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+}
+
+.coligada-dropdown .VirtualizedSelectOption {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+.coligada-dropdown .VirtualizedSelectFocusedOption {
+  background: rgba(37, 99, 235, 0.18) !important;
+}
+
 .dash-input:focus, .form-control:focus {
   border-color: var(--primary) !important;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;

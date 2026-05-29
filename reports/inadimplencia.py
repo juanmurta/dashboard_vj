@@ -5,7 +5,7 @@
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from database.connection import executar_query
+from database.connection import executar_query_por_coligadas
 from database.queries import SQL_INADIMPLENCIA_PERIODO
 from config import COLORS, COLOR_SEQUENCE
 
@@ -15,12 +15,11 @@ def buscar_inadimplencia(coligada: str, data_ini: str, data_fim: str) -> pd.Data
     Busca os dados de inadimplência no banco de dados.
     """
     parametros = {
-        "COLIGADA": coligada,
         "DATVEN_INI": data_ini,
         "DATVEN_FIN": data_fim
     }
 
-    df = executar_query(SQL_INADIMPLENCIA_PERIODO, parametros)
+    df = executar_query_por_coligadas(SQL_INADIMPLENCIA_PERIODO, parametros, "COLIGADA", coligada)
 
     if df.empty:
         return df

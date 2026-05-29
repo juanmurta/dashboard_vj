@@ -10,13 +10,15 @@
 # -----------------------------------------------------------------------------
 DB_CONFIG = {
     # Endereço IP do servidor onde o Firebird está rodando
-    "host": "192.168.1.110",
+    #"host": "192.168.1.110",
+    "host": "localhost",
 
     # Porta padrão do Firebird (3050). Altere se usar porta customizada.
     "port": 3050,
 
     # Caminho COMPLETO do arquivo .FDB no servidor remoto
-    "database": r"C:\MAKEMONEY\Dados\Renutri\VISAWORK.FDB",
+    #"database": r"C:\MAKEMONEY\Dados\Renutri\VISAWORK.FDB",
+    "database": r"D:\Makemoney\Dados\Renutri\VISAWORK.FDB",
 
     # Usuário do banco (padrão Firebird: SYSDBA)
     "user": "SYSDBA",

@@ -71,6 +71,71 @@ def _converter_para_posicional(sql: str, parametros: dict):
     return sql_posicional, valores
 
 
+def normalizar_coligadas(coligadas):
+    """
+    Normaliza uma entrada de coligadas para uma lista de códigos em string.
+
+    Aceita string única, lista, tupla, conjunto ou valores separados por vírgula.
+    """
+    if coligadas is None:
+        return []
+
+    if isinstance(coligadas, (list, tuple, set, pd.Index)):
+        valores = list(coligadas)
+    else:
+        texto = str(coligadas).strip()
+        if not texto:
+            return []
+        valores = [parte.strip() for parte in texto.replace(";", ",").split(",")]
+
+    normalizados = []
+    for valor in valores:
+        texto = str(valor).strip()
+        if not texto:
+            continue
+        if texto.isdigit():
+            texto = texto.zfill(3)
+        normalizados.append(texto)
+
+    vistos = set()
+    resultado = []
+    for valor in normalizados:
+        if valor not in vistos:
+            vistos.add(valor)
+            resultado.append(valor)
+
+    return resultado
+
+
+def executar_query_por_coligadas(sql: str, parametros: dict, nome_parametro: str, coligadas):
+    """
+    Executa a mesma consulta para várias coligadas e consolida os resultados.
+
+    Se for informada apenas uma coligada, executa uma única consulta.
+    """
+    valores = normalizar_coligadas(coligadas)
+    if not valores:
+        return pd.DataFrame()
+
+    if len(valores) == 1:
+        parametros_exec = dict(parametros or {})
+        parametros_exec[nome_parametro] = valores[0]
+        return executar_query(sql, parametros_exec)
+
+    partes = []
+    for valor in valores:
+        parametros_exec = dict(parametros or {})
+        parametros_exec[nome_parametro] = valor
+        df_parcial = executar_query(sql, parametros_exec)
+        if not df_parcial.empty:
+            partes.append(df_parcial)
+
+    if not partes:
+        return pd.DataFrame()
+
+    return pd.concat(partes, ignore_index=True)
+
+
 def executar_query(sql: str, parametros: dict = None) -> pd.DataFrame:
     """
     Executa uma query SQL e retorna os resultados como DataFrame do pandas.

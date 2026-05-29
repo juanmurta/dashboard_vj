@@ -14,7 +14,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from database.connection import executar_query
+from database.connection import executar_query_por_coligadas
 from database.queries import SQL_NOTAS_SAIDA
 from config import COLORS, COLOR_SEQUENCE
 
@@ -37,12 +37,11 @@ def buscar_notas(coligada: str, data_ini: str, data_fim: str) -> pd.DataFrame:
                       Retorna DataFrame vazio se não encontrar dados.
     """
     parametros = {
-        "pcodemp": coligada,
         "pdatai": data_ini,
         "pdataf": data_fim,
     }
 
-    df = executar_query(SQL_NOTAS_SAIDA, parametros)
+    df = executar_query_por_coligadas(SQL_NOTAS_SAIDA, parametros, "pcodemp", coligada)
 
     if df.empty:
         return df
